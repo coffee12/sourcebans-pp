@@ -1,15 +1,22 @@
 <?php
 
+namespace SourceBans;
+
 class Database
 {
-    private $prefix;
-    private $dbh;
-    private $error;
-    private $stmt;
+    private $instance = null;
+    private $prefix = null;
+    private $pdo = null;
+    private $stmt = null;
 
-    public function __construct($host, $port, $dbname, $user, $password, $prefix)
+    protected function __clone()
+    {
+    }
+
+    protected function __construct($user, $password, $host, $port, $dbname, $prefix)
     {
         $this->prefix = $prefix;
+
         $dsn = 'mysql:host='.$host.';port='.$port.';dbname='.$dbname;
         $options = array(
             \PDO::ATTR_PERSISTENT => true,
@@ -17,32 +24,21 @@ class Database
         );
 
         try {
-            $this->dbh = new \PDO($dsn, $user, $password, $options);
+            $this->pdo = new \PDO($dsn, $user, $password, $options);
         } catch (PDOException $e) {
-            $this->error = $e->getMessage();
+            $e->getMessage();
         }
     }
 
-    public function __destruct()
+    private function replacePrefix($query)
     {
-        unset($this->dbh);
-    }
-
-    public function getPrefix()
-    {
-        return $this->prefix;
-    }
-
-    private function setPrefix($query)
-    {
-        $query = str_replace(':prefix', $this->prefix, $query);
-        return $query;
+        return str_replace(':prefix', $this->prefix, $query);
     }
 
     public function query($query)
     {
-        $query = $this->setPrefix($query);
-        $this->stmt = $this->dbh->prepare($query);
+        $query = $this->replacePrefix($query);
+        $this->stmt = $this->pdo->prepare($query);
     }
 
     public function bind($param, $value, $type = null)
@@ -64,6 +60,13 @@ class Database
         }
 
         $this->stmt->bindValue($param, $value, $type);
+    }
+
+    public function bindMultiple($data = array())
+    {
+        foreach ($data as $param => $value) {
+            $this->bind($param, $value);
+        }
     }
 
     public function execute()
@@ -93,23 +96,16 @@ class Database
         return $this->dbh->lastInsertId();
     }
 
-    public function beginTransaction()
+    public function getInstance()
     {
-        return $this->dbh->beginTransaction();
+        if (!isset(self::$instance)) {
+            self::$instance = new Database(DB_USER, urlencode(DB_PASS), DB_HOST, DB_PORT, DB_NAME, DB_PREFIX);
+        }
+        return self::$instance;
     }
 
-    public function endTransaction()
+    protected function __destruct()
     {
-        return $this->dbh->commit();
-    }
-
-    public function cancelTransaction()
-    {
-        return $this->dbh->rollBack();
-    }
-
-    public function debugDumpParams()
-    {
-        return $this->stmt->debugDumpParams();
+        unset($this->pdo);
     }
 }
