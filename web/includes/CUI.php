@@ -24,13 +24,15 @@
 		Licensed under CC BY-NC-SA 3.0
 		Page: <http://www.sourcebans.net/> - <http://www.gameconnect.net/>
 *************************************************************************/
+namespace SourceBans;
 
 class CUI
 {
-    public function drawButton($text, $click, $class, $ids = "", $submit = false)
+    public function drawButton($text, $click, $class, $submit, $ids = "")
     {
-        $type = $submit ? "submit" : "button";
-        $button = "<input type='$type' onclick=\"$click\" name='$ids' class='btn $class' onmouseover='ButtonOver(\"$ids\")' onmouseout='ButtonOver(\"$ids\")' id='$ids' value='$text' />";
+        $type = empty($submit) ? "button" : "submit";
+        $button = "<input type='$type' onclick=\"$click\" name='$ids' class='btn $class'
+                onmouseover='ButtonOver(\"$ids\")' onmouseout='ButtonOver(\"$ids\")' id='$ids' value='$text' />";
         return $button;
     }
 
