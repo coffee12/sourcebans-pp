@@ -24,125 +24,162 @@
 		Licensed under CC BY-NC-SA 3.0
 		Page: <http://www.sourcebans.net/> - <http://www.gameconnect.net/>
 *************************************************************************/
+namespace SourceBans;
 
-class CSystemLog {
-    private $log_list = array();
+class CSystemLog
+{
+    private $logList = array();
     private $type = "";
     private $title = "";
     private $msg = "";
     private $aid = 0;
     private $host = "";
     private $created = 0;
-    private $parent_function = "";
+    private $parentFunction = "";
     private $query = "";
 
-    public function __construct($tpe="", $ttl="", $mg="", $done=true, $HideDebug = false)
-    {
+    private $database = null;
+
+    public function __construct(
+        Database $database = null,
+        $type = "",
+        $ttl = "",
+        $msg = "",
+        $host = "",
+        $done = null,
+        $query = null
+    ) {
+        $this->database = $database;
+        
         global $userbank;
-        if (!empty($tpe) && !empty($ttl) && !empty($mg)) {
-            $this->type = $tpe;
+        if (!empty($type) && !empty($ttl) && !empty($msg)) {
+            $this->type = $type;
             $this->title = $ttl;
-            $this->msg = $mg;
-            // if (!$HideDebug && ((isset($_GET['debug']) && $_GET['debug'] == 1) || defined("DEVELOPER_MODE")))
-            // {
-            //     echo "CSystemLog: " . $mg;
-            // }
+            $this->msg = $msg;
 
             if (!$userbank) {
                 return false;
             }
 
-            $this->aid =  $userbank->GetAid()?$userbank->GetAid():"-1";
-            $this->host = $_SERVER['REMOTE_ADDR'];
+            $this->aid = $userbank->GetAid() ? $userbank->GetAid() : "-1";
+            $this->host = filter_input(INPUT_SERVER, $host); //$_SERVER['REMOTE_ADDR']
             $this->created = time();
-            $this->parent_function = $this->_getCaller();
-            $this->query = isset($_SERVER['QUERY_STRING'])?$_SERVER['QUERY_STRING']:'';
-            if (isset($done) && $done == true) {
+            $this->parentFunction = $this->getCaller();
+            $this->query = is_null($query) ? '' : filter_input(INPUT_SERVER, $query); //$_SERVER['QUERY_STRING']
+            if (!is_null($done)) {
                 $this->WriteLog();
             }
         }
     }
 
-    public function AddLogItem($tpe, $ttl, $mg)
+    public function addLogItem($tpe, $ttl, $msg, $host, $query)
     {
         $item = array();
         $item['type'] = $tpe;
         $item['title'] = $ttl;
-        $item['msg'] = $mg;
+        $item['msg'] = $msg;
         $item['aid'] =  SB_AID;
-        $item['host'] = $_SERVER['REMOTE_ADDR'];
+        $item['host'] = filter_input(INPUT_SERVER, $host);//$_SERVER['REMOTE_ADDR']
         $item['created'] = time();
-        $item['parent_function'] = $this->_getCaller();
-        $item['query'] = $_SERVER['QUERY_STRING'];
+        $item['parentFunction'] = $this->getCaller();
+        $item['query'] = filter_input(INPUT_SERVER, $query);//$_SERVER['QUERY_STRING']
 
-        array_push($this->log_list, $item);
+        array_push($this->logList, $item);
     }
 
-    public function WriteLogEntries()
+    public function writeLogEntries()
     {
-        $this->log_list = array_unique($this->log_list);
-        foreach ($this->log_list as $logentry) {
+        $this->logList = array_unique($this->logList);
+        foreach ($this->logList as $logentry) {
             if (!$logentry['query']) {
                 $logentry['query'] = "N/A";
             }
-            if (isset($GLOBALS['db'])) {
-                $sm_log_entry = $GLOBALS['db']->Prepare("INSERT INTO ".DB_PREFIX."_log(type,title,message, function, query, aid, host, created)
-						VALUES (?,?,?,?,?,?,?,?)");
-                        $GLOBALS['db']->Execute($sm_log_entry, array($logentry['type'], $logentry['title'], $logentry['msg'], (string)$logentry['parent_function'],$logentry['query'], $logentry['aid'], $logentry['host'], $logentry['created']));
-            }
+
+            $data = array(
+                ":type" => $logentry['type'],
+                ":title" => $logentry['title'],
+                ":message" => $logentry['msg'],
+                ":function" => $logentry['parentFunction'],
+                ":query" => $logentry['query'],
+                ":aid" => $logentry['aid'],
+                ":host" => $logentry['host'],
+                ":created" => $logentry['created']
+            );
+
+            $this->database->query(
+                "INSERT INTO `:prefix_log` (type, title, message, function, query, aid, host, created)
+                VALUES (:type, :title, :message, :function, :query, :aid, :host, :created)"
+            );
+
+            $this->database->bindMultiple($data);
+            $this->database->execute();
         }
-        unset($this->log_list);
+        unset($this->logList);
     }
 
-    public function WriteLog()
+    public function writeLog()
     {
         if (!$this->query) {
             $this->query = "N/A";
         }
-        if (isset($GLOBALS['db'])) {
-            $sm_log_entry = $GLOBALS['db']->Prepare("INSERT INTO ".DB_PREFIX."_log(type,title,message, function, query, aid, host, created)
-						VALUES (?,?,?,?,?,?,?,?)");
-            $GLOBALS['db']->Execute($sm_log_entry, array($this->type, $this->title, $this->msg, (string)$this->parent_function,$this->query, $this->aid, $this->host, $this->created));
-        }
+
+        $data = array(
+            ":type" => $this->type,
+            ":title" => $this->title,
+            ":message" => $this->msg,
+            ":function" => $this->parentFunction,
+            ":query" => $this->query,
+            ":aid" => $this->aid,
+            ":host" => $this->host,
+            ":created" => $this->created
+        );
+
+        $this->database->query(
+            "INSERT INTO `:prefix_log` (type, title, message, function, query, aid, host, created)
+            VALUES (:type, :title, :message, :function, :query, :aid, :host, :created)"
+        );
+
+        $this->database->bindMultiple($data);
+        $this->database->execute();
     }
 
-    private function _getCaller()
+    private function getCaller()
     {
-        $bt = debug_backtrace();
+        $dbt = debug_backtrace();
 
-        $functions = isset($bt[2]['file'])?$bt[2]['file'] . " - " . $bt[2]['line'] . "<br />":'';
-        $functions .= isset($bt[3]['file'])?$bt[3]['file'] . " - " . $bt[3]['line'] . "<br />":'';
-        $functions .= isset($bt[4]['file'])?$bt[4]['file'] . " - " . $bt[4]['line'] . "<br />":'';
-        $functions .= isset($bt[5]['file'])?$bt[5]['file'] . " - " . $bt[5]['line'] . "<br />":'';
-        $functions .= isset($bt[6]['file'])?$bt[6]['file'] . " - " . $bt[6]['line'] . "<br />":'';
+        $functions = isset($dbt[2]['file']) ? $dbt[2]['file'] . " - " . $dbt[2]['line'] . "<br />" : '';
+        $functions .= isset($dbt[3]['file']) ? $dbt[3]['file'] . " - " . $dbt[3]['line'] . "<br />" : '';
+        $functions .= isset($dbt[4]['file']) ? $dbt[4]['file'] . " - " . $dbt[4]['line'] . "<br />" : '';
+        $functions .= isset($dbt[5]['file']) ? $dbt[5]['file'] . " - " . $dbt[5]['line'] . "<br />" : '';
+        $functions .= isset($dbt[6]['file']) ? $dbt[6]['file'] . " - " . $dbt[6]['line'] . "<br />" : '';
         return $functions;
     }
 
-    public function GetAll($start, $limit, $searchstring = "")
+    public function getAll($start, $limit, $searchstring = "")
     {
-        if (!is_object($GLOBALS['db'])) {
-            return false;
-        }
+        $this->database->query(
+            "SELECT ad.user, l.type, l.title, l.message, l.function, l.query, l.host, l.created, l.aid
+            FROM `:prefix_log` AS l LEFT JOIN `:prefix_admins` AS ad ON l.aid = ad.aid :search
+            ORDER BY l.created DESC LIMIT :start, :lim"
+        );
+        $this->database->bind(':start', $start, \PDO::PARAM_INT);
+        $this->database->bind(':lim', $limit, \PDO::PARAM_INT);
+        $this->database->bind(':search', $searchstring);
 
-        $start = (int)$start;
-        $limit = (int)$limit;
-        $sm_logs = $GLOBALS['db']->GetAll("SELECT ad.user, l.type, l.title, l.message, l.function, l.query, l.host, l.created, l.aid
-										   FROM ".DB_PREFIX."_log AS l
-										   LEFT JOIN ".DB_PREFIX."_admins AS ad ON l.aid = ad.aid
-										   ".$searchstring."
-										   ORDER BY l.created DESC
-										   LIMIT $start, $limit");
-        return $sm_logs;
+        $smLogs = $this->database->resultset();
+        return $smLogs;
     }
 
-    public function LogCount($searchstring="")
+    public function logCount($searchstring = "")
     {
-        $sm_logs = $GLOBALS['db']->GetRow("SELECT count(l.lid) AS count FROM ".DB_PREFIX."_log AS l".$searchstring);
-        return $sm_logs[0];
+        $this->database->query("SELECT count(l.lid) AS count FROM `:prefix_log` AS :search");
+        $this->database->bind(':search', "l".$searchstring);
+        $smLogs = $this->database->single();
+        return $smLogs['count'];
     }
 
-    public function CountLogList()
+    public function countLogList()
     {
-        return count($this->log_list);
+        return count($this->logList);
     }
 }
