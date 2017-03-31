@@ -18,7 +18,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
-This program is based off work covered by the following copyright(s): 
+This program is based off work covered by the following copyright(s):
 SourceBans 1.4.11
 Copyright © 2007-2014 SourceBans Team - Part of GameConnect
 Licensed under CC BY-NC-SA 3.0
@@ -33,11 +33,10 @@ if (!isset($_GET['id']) || !isset($_GET['type'])) {
 if (strcasecmp($_GET['type'], "B") != 0 && strcasecmp($_GET['type'], "S") != 0) {
     die('Bad type');
 }
-$id   = (int) $_GET['id'];
-$demo = $GLOBALS['db']->GetRow("SELECT filename, origname FROM `" . DB_PREFIX . "_demos` WHERE demtype=? AND demid=?;", array(
-    $_GET['type'],
-    $id
-));
+$database->query("SELECT filename, origname FROM `:prefix_demos` WHERE demtype = :demtype AND demid = :demid");
+$database->bind(':demtype', $_GET['type']);
+$database->bind(':demid', $_GET['id'], \PDO::PARAM_INT);
+$demo = $database->single();
 //Official Fix: https://code.google.com/p/sourcebans/source/detail?r=165
 if (!$demo) {
     die('Demo not found.');
