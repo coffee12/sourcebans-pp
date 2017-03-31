@@ -38,6 +38,8 @@ define('SB_MAP_LOCATION', ROOT . 'images/maps');
 define('SB_ICONS', ROOT . SB_ICON_LOCATION);
 define('SB_DEMOS', ROOT . SB_DEMO_LOCATION);
 
+define('DB_CHARSET', 'UTF8');
+
 define('SB_THEMES', ROOT . 'themes/');
 define('SB_THEMES_COMPILE', ROOT . 'themes_c/');
 
@@ -122,21 +124,14 @@ error_reporting(E_ALL ^ E_NOTICE);
 // ---------------------------------------------------
 //  Setup our DB
 // ---------------------------------------------------
-include_once(INCLUDES_PATH . "/adodb/adodb.inc.php");
-include_once(INCLUDES_PATH . "/adodb/adodb-errorhandler.inc.php");
 require_once(INCLUDES_PATH.'/Database.php');
-$GLOBALS['db'] = ADONewConnection("mysqli://".DB_USER.':'.urlencode(DB_PASS).'@'.DB_HOST.':'.DB_PORT.'/'.DB_NAME);
+$database = SourceBans\Database::getInstance();
 $GLOBALS['log'] = new CSystemLog();
 $GLOBALS['sb-email'] = SB_EMAIL;
 
-if( !is_object($GLOBALS['db']) )
-				die();
-
-$mysql_server_info = $GLOBALS['db']->ServerInfo();
-$GLOBALS['db_version'] = $mysql_server_info['version'];
-
-$debug = $GLOBALS['db']->Execute("SELECT value FROM `".DB_PREFIX."_settings` WHERE setting = 'config.debug';");
-if ($debug->fields['value']=="1") {
+$database->query("SELECT `value` FROM `:prefix_settings` WHERE setting = 'config.debug'");
+$debug = $database->single();
+if ($debug['value'] == "1") {
     define("DEVELOPER_MODE", true);
 }
 
@@ -261,7 +256,9 @@ define('ALL_WEB', ADMIN_LIST_ADMINS|ADMIN_ADD_ADMINS|ADMIN_EDIT_ADMINS|ADMIN_DEL
 define('ALL_SERVER', SM_RESERVED_SLOT.SM_GENERIC.SM_KICK.SM_BAN.SM_UNBAN.SM_SLAY.SM_MAP.SM_CVAR.SM_CONFIG.SM_VOTE.SM_PASSWORD.SM_RCON.
                      SM_CHEATS.SM_CUSTOM1.SM_CUSTOM2.SM_CUSTOM3. SM_CUSTOM4.SM_CUSTOM5.SM_CUSTOM6.SM_ROOT);
 
-$GLOBALS['db']->Execute("SET NAMES utf8;");
+$database->query("SET NAMES :charset");
+$database->bind(":charset", DB_CHARSET);
+$database->execute();
 
 $res = $GLOBALS['db']->Execute("SELECT * FROM ".DB_PREFIX."_settings GROUP BY `setting`, `value`");
 $GLOBALS['config'] = array();

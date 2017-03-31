@@ -4,7 +4,7 @@ namespace SourceBans;
 
 class Database
 {
-    private $instance = null;
+    private static $instance = null;
     private $prefix = null;
     private $pdo = null;
     private $stmt = null;
@@ -93,10 +93,10 @@ class Database
 
     public function lastInsertId()
     {
-        return $this->dbh->lastInsertId();
+        return $this->pdo->lastInsertId();
     }
 
-    public function getInstance()
+    public static function getInstance()
     {
         if (!isset(self::$instance)) {
             self::$instance = new Database(DB_USER, urlencode(DB_PASS), DB_HOST, DB_PORT, DB_NAME, DB_PREFIX);

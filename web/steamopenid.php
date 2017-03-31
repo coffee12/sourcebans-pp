@@ -34,8 +34,6 @@ require_once 'includes/openid.php';
 define('SB_HOST', SB_WP_URL);
 define('SB_URL', SB_WP_URL);
 
-$dbs = new Database(DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS, DB_PREFIX);
-
 function steamOauth()
 {
     $openid = new LightOpenID(SB_HOST);
@@ -56,12 +54,12 @@ function steamOauth()
     return false;
 }
 
-function convert64to32(Database $dbs, $communityID)
+function convert64to32(Database $database, $communityID)
 {
     $query = "SELECT CONCAT(\"STEAM_0:\", (CAST(':communityID' AS UNSIGNED) - CAST('76561197960265728' AS UNSIGNED)) % 2, \":\", CAST(((CAST(':communityID' AS UNSIGNED) - CAST('76561197960265728' AS UNSIGNED)) - ((CAST(':communityID' AS UNSIGNED) - CAST('76561197960265728' AS UNSIGNED)) % 2)) / 2 AS UNSIGNED)) AS steam_id";
     $query = str_replace(':communityID', $communityID, $query);
-    $dbs->query($query);
-    $steamid = $dbs->single();
+    $database->query($query);
+    $steamid = $database->single();
     return $steamid['steam_id'];
 }
 
@@ -72,11 +70,11 @@ if (isset($_COOKIE['aid'])) {
 $data = steamOauth();
 
 if ($data !== false) {
-    $data = convert64to32($dbs, $data);
+    $data = convert64to32($database, $data);
 
     $dbs->query('SELECT aid, password FROM `:prefix_admins` WHERE authid = :authid');
     $dbs->bind(':authid', $data);
-    $result = $dbs->single();
+    $result = $database->single();
     if (count($result) == 2) {
         global $userbank;
         if (empty($result['password']) || $result['password'] == $userbank->encrypt_password('')) {
