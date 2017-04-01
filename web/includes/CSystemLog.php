@@ -50,7 +50,7 @@ class CSystemLog
         $query = null
     ) {
         $this->database = $database;
-        
+
         global $userbank;
         if (!empty($type) && !empty($ttl) && !empty($msg)) {
             $this->type = $type;

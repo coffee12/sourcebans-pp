@@ -43,11 +43,13 @@ $groupsTabMenu->addMenuItem("Server Password", 2);
 $groupsTabMenu->addMenuItem("Change Email", 3);
 $groupsTabMenu->outputMenu();
 
-$res      = $GLOBALS['db']->Execute("SELECT `srv_password`, `email` FROM `" . DB_PREFIX . "_admins` WHERE `aid` = '" . $userbank->GetAid() . "'");
-$srvpwset = (!empty($res->fields['srv_password']) ? true : false);
+$database->query("SELECT srv_password, email FROM `:prefix_admins` WHERE aid = :aid");
+$database->bind(':aid', $userbank->getAid());
+$result = $database->single();
+$srvpwset = (!empty($result['srv_password']) ? true : false);
 
 $theme->assign('srvpwset', $srvpwset);
-$theme->assign('email', $res->fields['email']);
+$theme->assign('email', $result['email']);
 $theme->assign('user_aid', $userbank->GetAid());
 $theme->assign('web_permissions', BitToString($userbank->GetProperty("extraflags")));
 $theme->assign('server_permissions', SmFlagsToSb($userbank->GetProperty("srv_flags")));

@@ -37,7 +37,14 @@
 function is_taken($table, $field, $value)
 {
     // This one is nasty and should be removed. Avoid throwing any user input into $table and $field here...
-    $query = $GLOBALS['db']->GetRow("SELECT * FROM `" . DB_PREFIX . "_$table` WHERE `$field` = ?", array($value));
+    $database->query("SELECT * FROM `:prefix_:table` WHERE :field = :value");
+    $data = array(
+        ":table" => $table,
+        ":field" => $field,
+        ":value" => $value
+    );
+    $database->bindMultiple($data);
+    $query = $database->resultset();
     return (count($query) > 0);
 }
 
@@ -82,11 +89,18 @@ function logout()
  */
 function edit_admin($aid, $username, $name, $email, $authid)
 {
-    $query = $GLOBALS['db']->Execute("UPDATE `" . DB_PREFIX . "_admins` SET `user` = ?,  `authid` = ?, `email` = ? WHERE `aid` = ?", array($username, $authid, $email, $aid));
-    if ($query) {
-        return true;
-    }
-    return false;
+    $database->query(
+        "UPDATE `:prefix_admins` SET user = :user, authid = :authid, email = :email, name = :name WHERE aid = :aid"
+    );
+    $data = array(
+        ":user" => $username,
+        ":authid" => $authid,
+        ":email" => $email,
+        ":aid" => $aid,
+        ":name" => $name
+    );
+    $database->bindMultiple($data);
+    return $database->execute();
 }
 
 /**
@@ -97,12 +111,9 @@ function edit_admin($aid, $username, $name, $email, $authid)
  */
 function delete_admin($aid)
 {
-    $aid = (int)$aid;
-    $query = $GLOBALS['db']->Execute("DELETE FROM `" . DB_PREFIX . "_admins` WHERE `aid` = '$aid'");
-    if ($query) {
-        return true;
-    }
-    return false;
+    $database->query("DELETE FROM `:prefix_admins` WHERE aid = :aid");
+    $database->bind(':aid', $aid, \PDO::PARAM_INT);
+    return $database->execute();
 }
 
 /**
@@ -115,29 +126,35 @@ function delete_admin($aid)
 function userdata($aid, $pass)
 {
     global $userbank;
-    if (!$userbank->CheckLogin($userbank->encrypt_password($pass), $aid)) {
-        //Fill array with guest data
-        $_SESSION['user'] = array('aid' => '-1',
-                                  'user' => 'Guest',
-                                  'password' => '',
-                                  'steam' => '',
-                                  'email' => '',
-                                  'gid' => '',
-                                  'flags' => '0');
-    } else {
-        $query = $GLOBALS['db']->GetRow("SELECT * FROM `" . DB_PREFIX . "_admins` WHERE `aid` = '$aid'");
-        $_SESSION['user'] = array('aid' => $aid,
-                                  'user' => $query['user'],
-                                  'password' => $query['password'],
-                                  'steam' => $query['authid'],
-                                  'email' => $query['email'],
-                                  'gid' => $query['gid'],
-                                  'flags' => get_user_flags($aid),
-                                  'admin' => get_user_admin($query['authid']));
+
+    $data = array(
+        'aid' => '-1',
+        'user' => 'Guest',
+        'password' => '',
+        'steam' => '',
+        'email' => '',
+        'gid' => '',
+        'flags' => '0'
+    );
+    if ($userbank->CheckLogin($userbank->encrypt_password($pass), $aid)) {
+        $database->query("SELECT * FROM `:prefix_admins` WHERE aid = :aid");
+        $database->bind(':aid', $aid, \PDO::PARAM_INT);
+        $query = $database->single();
+        $data = array(
+            'aid' => $aid,
+            'user' => $query['user'],
+            'password' => $query['password'],
+            'steam' => $query['authid'],
+            'email' => $query['email'],
+            'gid' => $query['gid'],
+            'flags' => get_user_flags($aid),
+            'admin' => get_user_admin($query['authid'])
+        );
         $GLOBALS['aid'] = $aid;
         $GLOBALS['user'] = new CUser($aid);
         $GLOBALS['user']->FillData();
     }
+    $_SESSION['user'] = $data;
 }
 
 /**
@@ -152,11 +169,18 @@ function get_user_flags($aid)
         return 0;
     }
 
-    $admin = $query = $GLOBALS['db']->GetRow("SELECT `gid`, `extraflags` FROM `" . DB_PREFIX . "_admins` WHERE aid = '$aid'");
+    $database->query("SELECT gid, extraflags FROM `:prefix_admins` WHERE aid = :aid");
+    $database->bind(':aid', $aid, \PDO::PARAM_INT);
+    $admin = $database->single();
     if (intval($admin['gid']) == -1) {
         return intval($admin['extraflags']);
     }
-    $query = $GLOBALS['db']->GetRow("SELECT `flags` FROM `" . DB_PREFIX . "_groups` WHERE gid = (SELECT gid FROM " . DB_PREFIX . "_admins WHERE aid = '$aid')");
+    $database->query(
+        "SELECT flags FROM `:prefix_groups` WHERE gid =
+        (SELECT gid FROM `:prefix_admins` WHERE aid = :aid)"
+    );
+    $database->bind(':aid', $aid, \PDO::PARAM_INT);
+    $query = $database->single();
     return (intval($query['flags']) | intval($admin['extraflags']));
 }
 
@@ -171,9 +195,16 @@ function get_user_admin($steam)
     if (empty($steam)) {
         return 0;
     }
-    $admin = $GLOBALS['db']->GetRow("SELECT * FROM " . DB_PREFIX . "_admins WHERE authid = '" . $steam . "'");
+    $database->query("SELECT * FROM `:prefix_admins` WHERE authid = :authid");
+    $database->bind(':authid', $steam);
+    $admin = $database->single();
     if (strlen($admin['srv_group']) > 1) {
-        $query = $GLOBALS['db']->GetRow("SELECT flags FROM " . DB_PREFIX . "_srvgroups WHERE name = (SELECT srv_group FROM " . DB_PREFIX . "_admins WHERE authid = '" . $steam . "')");
+        $database->query(
+            "SELECT flags FROM `:prefix_srvgroups` WHERE name =
+            (SELECT srv_group FROM `:prefix_admins` WHERE authid = :authid)"
+        );
+        $database->bind(':authid', $steam);
+        $query = $database->single();
         return $query['flags'] . $admin['srv_flags'];
     }
     return $admin['srv_flags'];
@@ -190,7 +221,9 @@ function get_non_inherited_admin($steam)
     if (empty($steam)) {
         return 0;
     }
-    $admin = $GLOBALS['db']->GetRow("SELECT * FROM `" . DB_PREFIX . "_admins` WHERE authid = '$steam'");
+    $database->query("SELECT * FROM `:prefix_admins` WHERE authid = :authid");
+    $database->bind(':authid', $steam):
+    $admin = $database->single();
     return $admin['srv_flags'];
 }
 
@@ -255,7 +288,12 @@ function check_group($mask)
 function set_flag($aid, $flag)
 {
     $aid = (int)$aid;
-    $query = $GLOBALS['db']->Execute("UPDATE `" . DB_PREFIX . "_groups` SET `flags` = '$flag' WHERE gid = (SELECT gid FROM " . DB_PREFIX . "_admins WHERE aid = '$aid')");
+    $database->query(
+        "UPDATE `:prefix_groups` SET flags = :flags WHERE gid = (SELECT gid FROM `:prefix_admins` WHERE aid = :aid)"
+    );
+    $database->bind(':flags', $flag);
+    $database->bind(':aid', $aid, \PDO::PARAM_INT);
+    $database->execute();
     userdata($aid, $_SESSION['user']['password']);
 }
 
@@ -271,7 +309,12 @@ function add_flag($aid, $flag)
     $aid = (int)$aid;
     $flagd = get_user_flags($aid);
     $flagd |= $flag;
-    $query = $GLOBALS['db']->Execute("UPDATE `" . DB_PREFIX . "_groups` SET `flags` = '$flagd' WHERE gid = (SELECT gid FROM " . DB_PREFIX . "_admins WHERE aid = '$aid')");
+    $database->query(
+        "UPDATE `:prefix_groups` SET flags = :flags WHERE gid = (SELECT gid FROM `:prefix_admins` WHERE aid = :aid)"
+    );
+    $database->bind(':flags', $flagd);
+    $database->bind(':aid', $aid, \PDO::PARAM_INT);
+    $database->execute();
     userdata($aid, $_SESSION['user']['password']);
 }
 
@@ -284,10 +327,14 @@ function add_flag($aid, $flag)
  */
 function remove_flag($aid, $flag)
 {
-    $aid = (int)$aid;
     $flagd = get_user_flags($aid);
     $flagd &= ~($flag);
-    $query = $GLOBALS['db']->Execute("UPDATE `" . DB_PREFIX . "_groups` SET `flags` = '$flagd' WHERE gid = (SELECT gid FROM " . DB_PREFIX . "_admins WHERE aid = '$aid')");
+    $database->query(
+        "UPDATE `:prefix_groups` SET flags = :flags WHERE gid = (SELECT gid FROM `:prefix_admins` WHERE aid = :aid)"
+    );
+    $database->bind(':flags', $flagd);
+    $database->bind(':aid', $aid, \PDO::PARAM_INT);
+    $database->execute();
     userdata($aid, $_SESSION['user']['password']);
 }
 
@@ -360,7 +407,9 @@ function validate_ip($ips)
 function get_steamenabled_conf($value)
 {
     $settingvalue = "config.enablesteamlogin";
-    $query = $GLOBALS['db']->GetRow("SELECT `value` FROM `" . DB_PREFIX . "_settings` WHERE `setting` = '$settingvalue'");
+    $database->query("SELECT value FROM `:prefix_settings` WHERE setting = :setting");
+    $database->bind(':setting', $settingvalue);
+    $query = $database->single();
     $value = intval($query['value']);
     return $value;
 }

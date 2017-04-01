@@ -61,8 +61,10 @@ HTML;
 					ShowBox(
 						'Information',
 						'You are unable to login because your account have an empty password set.<br />' +
-						'Please <a href="$lostpassword_url">restore your password</a> or ask an admin to do that for you.<br />' +
-						'Do note that you are required to have a non empty password set event if you sign in through Steam.',
+						'Please <a href="$lostpassword_url">restore your password</a>
+                         or ask an admin to do that for you.<br />' +
+						'Do note that you are required to have a non empty
+                         password set event if you sign in through Steam.',
 						'blue', '', true
 					);
 				</script>
