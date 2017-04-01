@@ -126,7 +126,7 @@ error_reporting(E_ALL ^ E_NOTICE);
 // ---------------------------------------------------
 require_once(INCLUDES_PATH.'/Database.php');
 $database = SourceBans\Database::getInstance();
-$GLOBALS['log'] = new CSystemLog();
+$GLOBALS['log'] = new SourceBans\CSystemLog();
 $GLOBALS['sb-email'] = SB_EMAIL;
 
 $database->query("SELECT `value` FROM `:prefix_settings` WHERE setting = 'config.debug'");
@@ -260,12 +260,13 @@ $database->query("SET NAMES :charset");
 $database->bind(":charset", DB_CHARSET);
 $database->execute();
 
-$res = $GLOBALS['db']->Execute("SELECT * FROM ".DB_PREFIX."_settings GROUP BY `setting`, `value`");
+$database->query("SELECT * FROM `:prefix_settings` GROUP BY setting, value");
+$result = $database->resultset();
+
 $GLOBALS['config'] = array();
-while (!$res->EOF) {
-    $setting = array($res->fields['setting'] => $res->fields['value']);
+foreach ($result as $value) {
+    $setting = array($result['setting'] => $result['value']);
     $GLOBALS['config'] = array_merge_recursive($GLOBALS['config'], $setting);
-    $res->MoveNext();
 }
 
 define('SB_BANS_PER_PAGE', $GLOBALS['config']['banlist.bansperpage']);
@@ -334,4 +335,8 @@ if ((isset($_GET['debug']) && $_GET['debug'] == 1) || defined("DEVELOPER_MODE"))
 // ---------------------------------------------------
 // Setup our user manager
 // ---------------------------------------------------
-$userbank = new CUserManager(isset($_COOKIE['aid'])?$_COOKIE['aid']:'', isset($_COOKIE['password'])?$_COOKIE['password']:'');
+$userbank = new SourceBans\CUserManager(
+    isset($_COOKIE['aid']) ? $_COOKIE['aid'] : '',
+    isset($_COOKIE['password']) ? $_COOKIE['password'] : '',
+    $database
+);

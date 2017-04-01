@@ -24,66 +24,62 @@
 		Licensed under CC BY-NC-SA 3.0
 		Page: <http://www.sourcebans.net/> - <http://www.gameconnect.net/>
 *************************************************************************/
+namespace SourceBans;
 
 class CUpdater
 {
-    private $store=0;
+    private $store = 0;
+    private $database = null;
+    private $currentVersion = 0;
 
-    public function __construct()
+    public function __construct(Database $database, $version = 0)
     {
+        $this->database = $database;
+        $this->currentVersion = $version;
+
         if (!is_numeric($this->getCurrentRevision())) {
-            $this->_updateVersionNumber(0); // Set at 0 initially, this will cause all database updates to be run
+            $this->updateVersionNumber(0); // Set at 0 initially, this will cause all database updates to be run
         } elseif ($this->getCurrentRevision() == -1) { // They have some fubar version fix it for them :|
-            $GLOBALS['db']->Execute("INSERT INTO `".DB_PREFIX."_settings` (`setting`, `value`) VALUES ('config.version', '0')");
+            $this->database->query("INSERT INTO `:prefix_settings` (setting, value) VALUES ('config.version', '0')");
+            $this->database->execute();
         }
     }
 
     public function getLatestPackageVersion()
     {
-        $retval = 0;
-        foreach ($this->_getStore() as $version => $key) {
-            if ($version > $retval) {
-                $retval = $version;
-            }
-        }
-        return $retval;
+        $values = array_keys($this->getStore());
+        return max($values);
     }
 
     public function doUpdates()
     {
-        $retstr = "";
-        $error = false;
-        $i = 0;
-        foreach ($this->_getStore() as $version => $key) {
+        if ($this->getCurrentRevision >= $this->getLatestPackageVersion()) {
+            return "Nothing to update...";
+        }
+
+        $log = "";
+        foreach ($this->getStore() as $version => $file) {
             if ($version > $this->getCurrentRevision()) {
-                $i++;
-                $retstr .= "Running update: <b>v" . $version . "</b>... ";
-                if (!include(ROOT . "updater/data/" . $key)) {
-                    // OHSHI! Something went tits up :(
-                    $retstr .= "<b>Error executing: /updater/data/" . $key . ". Stopping Update!</b>";
-                    $error = true;
-                    break;
+                $log .= "Running Update: <b>v".$version."</b>... ";
+                if (!include(ROOT."updater/data/".$file)) {
+                    $log .= "<b>Error executing: /updater/data/".$file.". Stopping Update!</b>";
+                    $log .= "<br />Update Failed.";
+                    return $log;
                 }
-                // File was executed successfully
-                $retstr .= "Done.<br /><br />";
-                $this->_updateVersionNumber($version);
+                $log .= "Done.<br /><br />";
+                $this->updateVersionNumber($version);
+            }
+
+            if ($version == $this->getLatestPackageVersion()) {
+                $log .= "<br />Updated Sucessfully. Please delete the /updater folder.";
+                return $log;
             }
         }
-        if ($i == 0) {
-            $retstr .= "<br />Nothing to update...";
-            return $retstr;
-        }
-        if (!$error) {
-            $retstr .= "<br />Updated successfully. Please delete the /updater folder.";
-            return $retstr;
-        }
-        $retstr .= "<br />Update Failed.";
-        return $retstr;
     }
 
     public function getCurrentRevision()
     {
-        return (isset($GLOBALS['config']['config.version']))?$GLOBALS['config']['config.version']:-1;
+        return ($this->currentVersion > 0) ? $this->currentVersion : -1;
     }
 
     public function needsUpdate()
@@ -91,17 +87,18 @@ class CUpdater
         return($this->getLatestPackageVersion() > $this->getCurrentRevision());
     }
 
-    private function _getStore()
+    private function getStore()
     {
-        if ($this->store==0) {
+        if ($this->store == 0) {
             return include ROOT . "/updater/store.php";
         }
         return $this->store;
     }
 
-    private function _updateVersionNumber($rev)
+    private function updateVersionNumber($rev)
     {
-        $ret = $GLOBALS['db']->Execute("UPDATE ".DB_PREFIX."_settings SET value = ? WHERE setting = 'config.version';", array((int)$rev));
-        return !(empty($ret));
+        $this->database->query("UPDATE `:prefix_settings` SET value = :value WHERE setting = 'config.version'");
+        $this->database->bind(':value', $rev, \PDO::PARAM_INT);
+        return $this->database->execute();
     }
 }

@@ -16,7 +16,7 @@
 //  You should have received a copy of the GNU General Public License
 //  along with SourceBans++. If not, see <http://www.gnu.org/licenses/>.
 //
-//  This file is based off work covered by the following copyright(s):  
+//  This file is based off work covered by the following copyright(s):
 //
 //   SourceBans 1.4.11
 //   Copyright (C) 2007-2015 SourceBans Team - Part of GameConnect
@@ -36,7 +36,7 @@ while (($entry = $cachedir->read()) !== false) {
 }
 $cachedir->close();
 include INCLUDES_PATH . "/CUpdate.php";
-$updater = new CUpdater();
+$updater = new CUpdater($database, $GLOBALS['config']['config.version']);
 
 $setup = "Checking current database version...<b> " . $updater->getCurrentRevision() . "</b>";
 if (!$updater->needsUpdate()) {
@@ -52,4 +52,4 @@ $progress = $updater->doUpdates();
 
 $theme->assign('setup', $setup);
 $theme->assign('progress', $progress);
-$theme->display('updater.tpl');
+$theme->display('updater.tpl');
