@@ -46,7 +46,11 @@ if (isset($_GET['validation'], $_GET['email']) && !empty($_GET['email']) && !emp
 			<br />
 			An unknown error occured.
 			</div>';
-        $log = new CSystemLog("w", "Hacking Attempt", "Attempted password reset email injection. Using: " . $_SERVER['HTTP_HOST']);
+        $log = new CSystemLog(
+            "w",
+            "Hacking Attempt",
+            "Attempted password reset email injection. Using: " . $_SERVER['HTTP_HOST']
+        );
         exit();
     }
 
@@ -60,15 +64,18 @@ if (isset($_GET['validation'], $_GET['email']) && !empty($_GET['email']) && !emp
         exit();
     }
 
-    $q = $GLOBALS['db']->GetRow("SELECT aid, user FROM `" . DB_PREFIX . "_admins` WHERE `email` = ? && `validate` IS NOT NULL && `validate` = ?", array(
-        $email,
-        $validation
-    ));
+    $database->query(
+        "SELECT aid, user FROM `:prefix_admins` WHERE email = :email AND validate IS NOT NULL AND validate = :validate"
+    );
+    $database->bind(':email', $email);
+    $database->bind(':validate', $validation);
+    $q = $database->single();
     if ($q) {
         $newpass = generate_salt(MIN_PASS_LENGTH + 8);
-        $query   = $GLOBALS['db']->Execute("UPDATE `" . DB_PREFIX . "_admins` SET `password` = '" . $userbank->encrypt_password($newpass) . "', validate = NULL WHERE `aid` = ?", array(
-            $q['aid']
-        ));
+        $database->query("UPDATE `:prefix_admins` SET password = :password, validate = NULL WHERE aid = :aid");
+        $database->bind(':password', $userbank->encrypt_password($newpass));
+        $database->bind(':aid', $q['aid']);
+        $database->execute();
         $message = "Hello " . $q['user'] . ",\n\n";
         $message .= "Your password reset was successful.\n";
         $message .= "Your password was changed to: " . $newpass . "\n\n";
@@ -81,7 +88,8 @@ if (isset($_GET['validation'], $_GET['email']) && !empty($_GET['email']) && !emp
 			<i><img src="./images/info.png" alt="Info" /></i>
 			<b>Password Reset</b>
 			<br />
-			Your password has been reset and sent to your email.<br />Please check your spam folder too.<br />Please login using this password, <br />then use the change password link in Your Account.
+			Your password has been reset and sent to your email.<br />Please check your spam folder too.
+            <br />Please login using this password, <br />then use the change password link in Your Account.
 			</div>';
     } else {
         echo '<div id="msg-red" style="">

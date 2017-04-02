@@ -55,14 +55,14 @@ if (!isset($_GET['type']) || ($_GET['type'] != 's' && $_GET['type'] != 'p')) {
 // Submission
 $email = "";
 if ($_GET['type'] == 's') {
-    $email = $GLOBALS['db']->GetOne('SELECT email FROM `' . DB_PREFIX . '_submissions` WHERE subid = ?', array(
-        $_GET['id']
-    ));
+    $database->query("SELECT email FROM `:prefix_submissions` WHERE subid = :subid");
+    $database->bind(':subid', $_GET['id']);
+    $email = $database->single();
 } elseif ($_GET['type'] == 'p') {
     // Protest
-    $email = $GLOBALS['db']->GetOne('SELECT email FROM `' . DB_PREFIX . '_protests` WHERE pid = ?', array(
-        $_GET['id']
-    ));
+    $database->query("SELECT email FROM `:prefix_protests` WHERE pid = :pid");
+    $database->bind(':pid', $_GET['id']);
+    $email = $database->single();
 }
 
 if (empty($email)) {

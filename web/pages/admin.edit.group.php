@@ -50,10 +50,13 @@ if (!isset($_GET['type']) || ($_GET['type'] != 'web' && $_GET['type'] != 'srv' &
     die();
 }
 
-$_GET['id'] = (int) $_GET['id'];
+$database->query("SELECT flags, name FROM `:prefix_groups` WHERE gid = :gid");
+$database->bind(':gid', $_GET['id'], \PDO::PARAM_INT);
+$web_group = $database->single();
 
-$web_group = $GLOBALS['db']->GetRow("SELECT flags, name FROM " . DB_PREFIX . "_groups WHERE gid = {$_GET['id']}");
-$srv_group = $GLOBALS['db']->GetRow("SELECT flags, name, immunity FROM " . DB_PREFIX . "_srvgroups WHERE id = {$_GET['id']}");
+$database->query("SELECT flags, name, immunity FROM `:prefix_srvgroups` WHERE id = :id");
+$database->bind(':id', $_GET['id'], \PDO::PARAM_INT);
+$srv_group = $database->single();
 
 $web_flags = intval($web_group[0]);
 $srv_flags = isset($srv_group[0]) ? $srv_group[0] : '';
@@ -65,7 +68,11 @@ $name = $userbank->GetProperty("user", $_GET['id'])?>
 <input type="hidden" id="group_id" value=<?=$_GET['id']?>>
 <table width="90%" style="border-collapse:collapse;" id="group.details" cellpadding="3">
   <tr>
-    <td valign="top" width="35%"><div class="rowdesc"><?=HelpIcon("Group Name", "Type the name of the new group you want to create.")?>Group Name </div></td>
+    <td valign="top" width="35%">
+        <div class="rowdesc">
+            <?=HelpIcon("Group Name", "Type the name of the new group you want to create.")?>Group Name
+        </div>
+    </td>
     <td><div align="left">
       <input type="text" TABINDEX=1 class="inputbox" id="groupname" name="groupname" />
     </div><div id="groupname.msg" style="color:#CC0000;"></div></td>
@@ -86,15 +93,19 @@ if ($_GET['type'] == "web") {
     // Group overrides
     // ALERT >>> GROSS CODE MIX <<<
     // I'm far to lazy to rewrite this to use smarty right now.
-    $overrides_list = $GLOBALS['db']->GetAll("SELECT * FROM `" . DB_PREFIX . "_srvgroups_overrides` WHERE group_id = ?", array(
-        $_GET['id']
-    ));
+    $database->query("SELECT * FROM `:prefix_srvgroups_overrides` WHERE group_id = :groupId");
+    $database->bind(':groupId', $_GET['id']);
+    $overrides_list = $database->resultset();
 ?>
 <br />
 <form action="" method="post" name="group_overrides_form">
 <div class="rowdesc">Group Overrides</div>
-Group Overrides allow specific commands or groups of commands to be completely allowed or denied to members of the group.<br />
-<i>Read about <b><a href="http://wiki.alliedmods.net/Adding_Groups_%28SourceMod%29" title="Adding Groups (SourceMod)" target="_blank">group overrides</a></b> in the AlliedModders Wiki!</i><br /><br />
+Group Overrides allow specific commands or groups of commands to
+be completely allowed or denied to members of the group.<br />
+<i>Read about <b>
+<a href="http://wiki.alliedmods.net/Adding_Groups_%28SourceMod%29" title="Adding Groups (SourceMod)">group overrides</a>
+</b> in the AlliedModders Wiki!
+</i><br /><br />
 Blanking out an overrides' name will delete it.<br /><br />
 <table align="center" cellspacing="0" cellpadding="4" id="overrides" width="90%">
     <tr>
@@ -108,7 +119,7 @@ foreach ($overrides_list as $override) {
     <tr>
         <td class="tablerow1">
             <select name="override_type[]">
-                <option value="command" <?=$override['type'] == "command" ? "selected=\"selected\"" : ""?>>Command</option>
+                <option value="command" <?=$override['type'] == "command" ?"selected=\"selected\"":""?>>Command</option>
                 <option value="group"<?=$override['type'] == "group" ? "selected=\"selected\"" : ""?>>Group</option>
             </select>
                     <input type="hidden" name="override_id[]" value="<?=$override['id']?>" />
@@ -116,7 +127,7 @@ foreach ($overrides_list as $override) {
             <td class="tablerow1"><input name="override_name[]" value="<?=htmlspecialchars($override['name'])?>" /></td>
             <td class="tablerow1">
                 <select name="override_access[]">
-                    <option value="allow"<?=$override['access'] == "allow" ? "selected=\"selected\"" : ""?>>Allow</option>
+                    <option value="allow"<?=$override['access'] == "allow" ? "selected=\"selected\"":""?>>Allow</option>
                     <option value="deny"<?=$override['access'] == "deny" ? "selected=\"selected\"" : ""?>>Deny</option>
                 </select>
             </td>
@@ -151,7 +162,13 @@ foreach ($overrides_list as $override) {
         <td>&nbsp;</td>
         <td>
             <div align="center">
-        <?=$ui->drawButton("Save Changes", "ProcessEditGroup('" . $_GET['type'] . "', $('groupname').value);", "ok", "editgroup", true)?>
+        <?php $ui->drawButton(
+            "Save Changes",
+            "ProcessEditGroup('" . $_GET['type'] . "', $('groupname').value);",
+            "ok",
+            "editgroup",
+            true
+        );?>
         &nbsp;<?=$ui->drawButton("Back", "history.go(-1)", "cancel", "back")?>
             </div>
         </td>

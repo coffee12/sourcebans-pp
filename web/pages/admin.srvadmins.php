@@ -26,16 +26,13 @@ Page: <http://www.sourcebans.net/> - <http://www.gameconnect.net/>
 *************************************************************************/
 
 global $theme;
-$srv_admins = $GLOBALS['db']->GetAll("SELECT authid, user
-    FROM " . DB_PREFIX . "_admins_servers_groups AS asg
-    LEFT JOIN " . DB_PREFIX . "_admins AS a ON a.aid = asg.admin_id
-    WHERE (server_id = " . (int) $_GET['id'] . " OR srv_group_id = ANY
-    (
-            SELECT group_id
-            FROM " . DB_PREFIX . "_servers_groups
-            WHERE server_id = " . (int) $_GET['id'] . ")
-    )
-    GROUP BY aid, authid, srv_password, srv_group, srv_flags, user ");
+$database->query(
+    "SELECT authid, user FROM `:prefix_admins_servers_groups` AS asg
+    LEFT JOIN `:prefix_admins` AS a ON a.aid = asg.admin_id WHERE (server_id = :serverId OR srv_group_id = ANY
+    (SELECT group_id FROM `:prefix_servers_groups` WHERE server_id = :serverId))
+    GROUP BY aid, authid, srv_password, srv_group, srv_flags, user"
+);
+$srv_admins = $database->resultset();
 $i = 0;
 foreach ($srv_admins as $admin) {
     $admsteam[] = $admin['authid'];

@@ -55,7 +55,8 @@ foreach ($var as $v) {
         $class = "";
     }
     $itm        = array();
-    $itm['tab'] = "<li id='tab-" . $v['id'] . "' class='" . $class . "'><a href='$lnk' id='admin_tab_" . $v['id'] . "' onclick=\"$click\"> " . $v['title'] . "</a></li>";
+    $itm['tab'] = "<li id='tab-" . $v['id'] . "' class='" . $class . "'>
+                   <a href='$lnk' id='admin_tab_" . $v['id'] . "' onclick=\"$click\"> " . $v['title'] . "</a></li>";
     array_push($tabs, $itm);
     $i++;
     $first = false;

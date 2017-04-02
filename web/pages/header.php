@@ -44,8 +44,14 @@ if (isset($_GET['c']) && $_GET['c'] == "settings") {
 						selector: "textarea",
                         height: 500,
 						theme : "modern",
-						plugins : "advlist, autolink, lists, link, image, charmap, print, preview, hr, anchor, pagebreak, searchreplace, wordcount, visualblocks, visualchars, code, fullscreen, insertdatetime, media, nonbreaking, save, table, contextmenu, directionality, emoticons, template, paste, textcolor, colorpicker, textpattern, imagetools, codesample, toc",
-						extended_valid_elements : "a[name|href|target|title|onclick],img[class|src|border=0|alt|title|hspace|vspace|width|height|align|onmouseover|onmouseout|name],hr[class|width|size|noshade],font[face|size|color|style],span[class|align|style]"
+						plugins : "advlist, autolink, lists, link, image, charmap, print, preview, hr,
+                                   anchor, pagebreak, searchreplace, wordcount, visualblocks, visualchars, code,
+                                   fullscreen, insertdatetime, media, nonbreaking, save, table, contextmenu,
+                                   directionality, emoticons, template, paste, textcolor, colorpicker,
+                                   textpattern, imagetools, codesample, toc",
+						extended_valid_elements : "a[name|href|target|title|onclick],
+                         img[class|src|border=0|alt|title|hspace|vspace|width|height|align|onmouseover|onmouseout|name],
+                         hr[class|width|size|noshade],font[face|size|color|style],span[class|align|style]"
 					});
 					</script>');
 } else {
@@ -57,5 +63,9 @@ $theme->assign('header_title', $GLOBALS['config']['template.title']);
 $theme->assign('header_logo', $GLOBALS['config']['template.logo']);
 $theme->assign('username', $userbank->GetProperty("user"));
 $theme->assign('logged_in', $userbank->is_logged_in());
-$theme->assign('theme_name', isset($GLOBALS['config']['config.theme']) ? $GLOBALS['config']['config.theme'] : 'default');
+$configTheme = 'default';
+if (isset($GLOBALS['config']['config.theme'])) {
+    $configTheme = $GLOBALS['config']['config.theme'];
+}
+$theme->assign('theme_name', $configTheme);
 $theme->display('page_header.tpl');

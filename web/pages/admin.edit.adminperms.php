@@ -40,8 +40,9 @@ if (!isset($_GET['id'])) {
 </div>';
     PageDie();
 }
-$admin = $GLOBALS['db']->GetRow("SELECT * FROM " . DB_PREFIX . "_admins WHERE aid = \"" . $_GET['id'] . "\"");
-
+$database->query("SELECT * FROM `:prefix_admins` WHERE aid = :aid");
+$database->bind(':aid', $_GET['id']);
+$admin = $database->single();
 
 if (!$userbank->GetProperty("user", $_GET['id'])) {
     $log = new CSystemLog("e", "Getting admin data failed", "Can't find data for admin with id '" . $_GET['id'] . "'");
@@ -99,9 +100,6 @@ $name      = $userbank->GetProperty("user", $_GET['id'])?>
     </td>
   </tr>
 </table>
-
-
-
 
 <script>
 <?php

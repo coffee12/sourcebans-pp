@@ -35,7 +35,9 @@ global $theme, $userbank;
 $sid = (int) $_GET['id'];
 
 // Access on that server?
-$servers = $GLOBALS['db']->GetAll("SELECT `server_id`, `srv_group_id` FROM " . DB_PREFIX . "_admins_servers_groups WHERE admin_id = " . $userbank->GetAid());
+$database->query("SELECT server_id, srv_group_id FROM `:prefix_admins_servers_groups` WHERE admin_id = :adminId");
+$database->bind(':adminId', $userbank->getAid());
+$servers = $database->resultset();
 $access  = false;
 foreach ($servers as $server) {
     if ($server['server_id'] == $sid) {
@@ -43,7 +45,9 @@ foreach ($servers as $server) {
         break;
     }
     if ($server['srv_group_id'] > 0) {
-        $servers_in_group = $GLOBALS['db']->GetAll("SELECT `server_id` FROM " . DB_PREFIX . "_servers_groups WHERE group_id = " . (int) $server['srv_group_id']);
+        $database->query("SELECT server_id FROM `:prefix_servers_groups` WHERE group_id = :groupId");
+        $database->bind(':groupId', $server['srv_group_id'], \PDO::PARAM_INT);
+        $servers_in_group = $database->resultset();
         foreach ($servers_in_group as $servig) {
             if ($servig['server_id'] == $sid) {
                 $access = true;

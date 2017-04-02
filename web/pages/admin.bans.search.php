@@ -26,23 +26,28 @@ Page: <http://www.sourcebans.net/> - <http://www.gameconnect.net/>
 *************************************************************************/
 
 global $userbank, $theme;
-$admin_list   = $GLOBALS['db']->GetAll("SELECT * FROM `" . DB_PREFIX . "_admins` ORDER BY user ASC");
-$server_list  = $GLOBALS['db']->Execute("SELECT sid, ip, port FROM `" . DB_PREFIX . "_servers` WHERE enabled = 1");
+$database->query("SELECT * FROM `:prefix_admins` ORDER BY user ASC");
+$admin_list   = $database->resultset();
+$database->query("SELECT sid, ip, port FROM `:prefix_servers` WHERE enabled = '0'");
+$server_list  = $database->resultset();
 $servers      = array();
 $serverscript = "<script type=\"text/javascript\">";
-while (!$server_list->EOF) {
+foreach ($server_list as $server) {
     $info = array();
-    $serverscript .= "xajax_ServerHostPlayers('" . $server_list->fields[0] . "', 'id', 'ss" . $server_list->fields[0] . "', '', '', false, 200);";
-    $info['sid']  = $server_list->fields[0];
-    $info['ip']   = $server_list->fields[1];
-    $info['port'] = $server_list->fields[2];
+    $serverscript .= "xajax_ServerHostPlayers('".$server['sid']."', 'id', 'ss".$server['sid']."', '', '', false, 200);";
+    $info['sid']  = $server['sid'];
+    $info['ip']   = $server['ip'];
+    $info['port'] = $server['port'];
     array_push($servers, $info);
-    $server_list->MoveNext();
 }
 $serverscript .= "</script>";
 $page = isset($_GET['page']) ? $_GET['page'] : 1;
 
-$theme->assign('hideplayerips', (isset($GLOBALS['config']['banlist.hideplayerips']) && $GLOBALS['config']['banlist.hideplayerips'] == "1" && !$userbank->is_admin()));
+$theme->assign(
+    'hideplayerips',
+    (isset($GLOBALS['config']['banlist.hideplayerips'])
+    && $GLOBALS['config']['banlist.hideplayerips'] == "1" && !$userbank->is_admin())
+);
 $theme->assign('is_admin', $userbank->is_admin());
 $theme->assign('admin_list', $admin_list);
 $theme->assign('server_list', $servers);

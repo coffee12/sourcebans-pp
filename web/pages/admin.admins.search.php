@@ -28,53 +28,53 @@ Page: <http://www.sourcebans.net/> - <http://www.gameconnect.net/>
 global $userbank, $theme;
 
 //serverlist
-$server_list  = $GLOBALS['db']->Execute("SELECT sid, ip, port FROM `" . DB_PREFIX . "_servers` WHERE enabled = 1");
+$database->query("SELECT sid, ip, port FROM `:prefix_servers` WHERE enabled = '1'");
+$server_list  = $database->resultset();
 $servers      = array();
 $serverscript = "<script type=\"text/javascript\">";
-while (!$server_list->EOF) {
+foreach ($server_list as $server) {
     $info = array();
-    $serverscript .= "xajax_ServerHostPlayers('" . $server_list->fields[0] . "', 'id', 'ss" . $server_list->fields[0] . "', '', '', false, 200);";
-    $info['sid']  = $server_list->fields[0];
-    $info['ip']   = $server_list->fields[1];
-    $info['port'] = $server_list->fields[2];
+    $serverscript .= "xajax_ServerHostPlayers('".$server['sid']."', 'id', 'ss".$server['sid']."', '', '', false, 200);";
+    $info['sid']  = $server['sid'];
+    $info['ip']   = $server['ip'];
+    $info['port'] = $server['port'];
     array_push($servers, $info);
-    $server_list->MoveNext();
 }
 $serverscript .= "</script>";
 
 //webgrouplist
-$webgroup_list = $GLOBALS['db']->Execute("SELECT gid, name FROM " . DB_PREFIX . "_groups WHERE type = '1'");
+$database->query("SELECT gid, name FROM `:prefix_groups` WHERE type = '1'");
+$webgroup_list = $database->resultset();
 $webgroups     = array();
-while (!$webgroup_list->EOF) {
+foreach ($webgroup_list as $webgroup) {
     $data         = array();
-    $data['gid']  = $webgroup_list->fields['gid'];
-    $data['name'] = $webgroup_list->fields['name'];
+    $data['gid']  = $webgroup['gid'];
+    $data['name'] = $webgroup['name'];
 
     array_push($webgroups, $data);
-    $webgroup_list->MoveNext();
 }
 
 //serveradmingrouplist
-$srvadmgroup_list = $GLOBALS['db']->Execute("SELECT name FROM " . DB_PREFIX . "_srvgroups ORDER BY name ASC");
+$database->query("SELECT name FROM `:prefix_srvgroups` ORDER BY name ASC");
+$srvadmgroup_list = $database->resultset();
 $srvadmgroups     = array();
-while (!$srvadmgroup_list->EOF) {
+foreach ($srvadmgroup_list as $srvadmgroup) {
     $data         = array();
-    $data['name'] = $srvadmgroup_list->fields['name'];
+    $data['name'] = $srvadmgroup['name'];
 
     array_push($srvadmgroups, $data);
-    $srvadmgroup_list->MoveNext();
 }
 
 //servergroup
-$srvgroup_list = $GLOBALS['db']->Execute("SELECT gid, name FROM " . DB_PREFIX . "_groups WHERE type = '3'");
+$database->query("SELECT gid, name FROM `:prefix_groups` WHERE type = '3'");
+$srvgroup_list = $database->resultset();
 $srvgroups     = array();
-while (!$srvgroup_list->EOF) {
+foreach ($srvgroup_list as $srvgroup) {
     $data         = array();
-    $data['gid']  = $srvgroup_list->fields['gid'];
-    $data['name'] = $srvgroup_list->fields['name'];
+    $data['gid']  = $srvgroup['gid'];
+    $data['name'] = $srvgroup['name'];
 
     array_push($srvgroups, $data);
-    $srvgroup_list->MoveNext();
 }
 
 //webpermissions
