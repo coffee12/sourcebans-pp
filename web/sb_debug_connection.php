@@ -18,7 +18,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
-This program is based off work covered by the following copyright(s): 
+This program is based off work covered by the following copyright(s):
 SourceBans 1.4.11
 Copyright © 2007-2014 SourceBans Team - Part of GameConnect
 Licensed under CC BY-NC-SA 3.0
@@ -29,19 +29,24 @@ Page: <http://www.sourcebans.net/> - <http://www.gameconnect.net/>
  * Checks for the ports being forwarded correctly
  */
 
-/** 
+/**
  * Config part
  * Change to IP and port of the gameserver you want to test
  */
 $serverip   = "";
 $serverport = 27015;
-$serverrcon = ""; // You only need to specify this, if you want to test the rcon tcp connection either! Leave blank if it's only the serverinfo erroring.
+/*
+ * You only need to specify this, if you want to test the rcon tcp connection either!
+ * Leave blank if it's only the serverinfo erroring.
+ */
+$serverrcon = "";
 
 
 /******* Don't change below here *******/
 
-if (empty($serverip) || empty($serverport))
+if (empty($serverip) || empty($serverport)) {
     die('[-] No server information set. Open up this file and specify your gameserver\'s IP and port.');
+}
 
 echo '[+] SourceBans "Error Connecting()" Debug starting for server ' . $serverip . ':' . $serverport . '<br /><br />';
 
@@ -55,7 +60,7 @@ if (!$sock) {
     echo '[-] Error connecting #' . $errno . ': ' . $errstr . '<br />';
 } else {
     echo '[+] UDP connection successfull!<br />';
-    
+
     stream_set_timeout($sock, 1);
     // Try to get serverinformation
     echo '[+] Trying to write to the socket<br />';
@@ -65,7 +70,7 @@ if (!$sock) {
     } else {
         echo '[+] Successfully requested server info. (That doesn\'t mean anything on an UDP stream.) Reading...<br />';
         $packet = fread($sock, 1480);
-        
+
         if (empty($packet)) {
             echo '[-] Error getting server info. Can\'t read from UDP stream. Port is possibly blocked.<br />';
         } else {
@@ -93,16 +98,16 @@ if (!$sock) {
     echo '[+] TCP connection successfull!<br />';
     if (empty($serverrcon)) {
         echo '[o] Stopping here since no rcon password specified.';
-    } else if ($isBanned) {
+    } elseif ($isBanned) {
         echo '[o] Stopping here since this ip is banned by the gameserver.';
     } else {
         stream_set_timeout($sock, 2);
         $data = pack("VV", 0, 03) . $serverrcon . chr(0) . '' . chr(0);
         $data = pack("V", strlen($data)) . $data;
-        
+
         echo '[+] Trying to write to TCP socket and authenticate via rcon<br />';
         $written = fwrite($sock, $data, strlen($data));
-        
+
         if ($written === false) {
             echo '[-] Error writing.<br />';
         } else {
@@ -119,7 +124,8 @@ if (!$sock) {
                 $packet = fread($sock, $size["Size"]);
                 $ret    = unpack("V1ID/V1Reponse/a*S1/a*S2", $packet);
                 if (empty($ret) || (isset($ret['ID']) && $ret['ID'] == -1)) {
-                    echo '[-] Bad password ;) Don\'t try this too often or your webserver will get banned by the gameserver.<br />';
+                    echo '[-] Bad password!
+                        Don\'t try this too often or your webserver will get banned by the gameserver.<br />';
                 } else {
                     echo '[+] Password correct!';
                 }

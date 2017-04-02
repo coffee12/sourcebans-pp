@@ -84,7 +84,7 @@ if ($_GET['c'] == "groups") {
         }
         if (isset($_GET['advSearch'])) {
             // Escape the value, but strip the leading and trailing quote
-            $value = substr($GLOBALS['db']->qstr($_GET['advSearch'], get_magic_quotes_gpc()), 1, -1);
+            $value = substr($_GET['advSearch']), 1, -1);
             $type = $_GET['advType'];
             switch ($type) {
                 case "name":
@@ -107,7 +107,7 @@ if ($_GET['c'] == "groups") {
                     break;
                 case "srvgroup":
                     $where = " AND SG.srv_group_id = '" . $value . "'";
-                    $join = " LEFT JOIN `" . DB_PREFIX . "_admins_servers_groups` AS SG ON SG.admin_id = ADM.aid";
+                    $join = " LEFT JOIN `:prefix_admins_servers_groups` AS SG ON SG.admin_id = ADM.aid";
                     break;
                 case "admwebflag":
                     $findflags = explode(",", $value);
@@ -115,15 +115,15 @@ if ($_GET['c'] == "groups") {
                         $flags[] = constant($flag);
                     }
                     $flagstring = implode('|', $flags);
-                    $alladmins = $GLOBALS['db']->Execute("SELECT aid FROM `" . DB_PREFIX . "_admins` WHERE aid > 0");
-                    while (!$alladmins->EOF) {
-                        if ($userbank->HasAccess($flagstring, $alladmins->fields["aid"])) {
+                    $database->query("SELECT aid FROM `:prefix_admins` WHERE aid > 0");
+                    $alladmins = $database->resultset();
+                    foreach ($alladmins as $admin) {
+                        if ($userbank->HasAccess($flagstring, $admin["aid"])) {
                             if (!isset($accessaid)) {
-                                $accessaid = $alladmins->fields["aid"];
+                                $accessaid = $admin["aid"];
                             }
-                            $accessaid .= ",".$alladmins->fields["aid"];
+                            $accessaid .= ",".$admin["aid"];
                         }
-                        $alladmins->MoveNext();
                     }
                     $where = " AND ADM.aid IN(".$accessaid.")";
                     break;
@@ -132,29 +132,30 @@ if ($_GET['c'] == "groups") {
                     foreach ($findflags as $flag) {
                         $flags[] = constant($flag);
                     }
-                    $alladmins = $GLOBALS['db']->Execute("SELECT aid, authid FROM `" . DB_PREFIX . "_admins` WHERE aid > 0");
-                    while (!$alladmins->EOF) {
+                    $database->query("SELECT aid, authid FROM `:prefix_admins` WHERE aid > 0");
+                    $alladmins = $database->resultset();
+                    foreach ($alladmins as $admin) {
                         foreach ($flags as $fla) {
-                            if (strstr(get_user_admin($alladmins->fields["authid"]), $fla)) {
+                            if (strstr(get_user_admin($admin["authid"]), $fla)) {
                                 if (!isset($accessaid)) {
-                                    $accessaid = $alladmins->fields["aid"];
+                                    $accessaid = $admin["aid"];
                                 }
-                                $accessaid .= ",".$alladmins->fields["aid"];
+                                $accessaid .= ",".$admin["aid"];
                             }
                         }
-                        if (strstr(get_user_admin($alladmins->fields["authid"]), 'z')) {
+                        if (strstr(get_user_admin($admin["authid"]), 'z')) {
                             if (!isset($accessaid)) {
-                                $accessaid = $alladmins->fields["aid"];
+                                $accessaid = $admin["aid"];
                             }
-                            $accessaid .= ",".$alladmins->fields["aid"];
+                            $accessaid .= ",".$admin["aid"];
                         }
-                        $alladmins->MoveNext();
                     }
                     $where = " AND ADM.aid IN(".$accessaid.")";
                     break;
                 case "server":
                     $where = " AND (ASG.server_id = '" . $value . "' OR SG.server_id = '" . $value . "')";
-                    $join = " LEFT JOIN `" . DB_PREFIX . "_admins_servers_groups` AS ASG ON ASG.admin_id = ADM.aid LEFT JOIN `" . DB_PREFIX . "_servers_groups` AS SG ON SG.group_id = ASG.srv_group_id";
+                    $join = " LEFT JOIN `:prefix_admins_servers_groups` AS ASG ON ASG.admin_id = ADM.aid
+                        LEFT JOIN `:prefix_servers_groups` AS SG ON SG.group_id = ASG.srv_group_id";
                     break;
                 default:
                     $_GET['advSearch'] = "";
@@ -164,7 +165,14 @@ if ($_GET['c'] == "groups") {
             }
                 $advSearchString = "&advSearch=".$_GET['advSearch']."&advType=".$_GET['advType'];
         }
-        $admins = $GLOBALS['db']->GetAll("SELECT * FROM `" . DB_PREFIX . "_admins` AS ADM".$join." WHERE ADM.aid > 0".$where." ORDER BY user LIMIT " . intval(($page-1) * $AdminsPerPage) . "," . intval($AdminsPerPage));
+        $database->query(
+            "SELECT * FROM `:prefix_admins` AS :admJoin WHERE ADM.aid > 0 :cond ORDER BY user LIMIT :start, :lim"
+        );
+        $database->bind(':admJoin', $join);
+        $database->bind(':cond', $where);
+        $database->bind(':start', intval(($page-1) * $AdminsPerPage));
+        $database->bind(':lim', intval($AdminsPerPage));
+        $admins = $database->resultset();
         // quick fix for the server search showing admins mulitple times.
         if (isset($_GET['advSearch']) && isset($_GET['advType']) && $_GET['advType'] == 'server') {
             $aadm = array();
@@ -179,11 +187,15 @@ if ($_GET['c'] == "groups") {
             }
         }
 
-        $query = $GLOBALS['db']->GetRow("SELECT COUNT(ADM.aid) AS cnt FROM `" . DB_PREFIX . "_admins` AS ADM".$join." WHERE ADM.aid > 0".$where);
+        $database->query("SELECT COUNT(ADM.aid) AS cnt FROM `:prefix_admins` AS :admJoin WHERE ADM.aid > 0 :cond");
+        $database->bind(':admJoin', 'ADM'.$Join);
+        $database->bind(':cond', $where);
+        $query = $database->single();
         $admin_count = $query['cnt'];
         include TEMPLATES_PATH . "/admin.admins.php";
         RewritePageTitle("Admin Management");
-    } elseif ($_GET['o'] == 'editgroup' || $_GET['o'] == 'editdetails' || $_GET['o'] == 'editpermissions' || $_GET['o'] == 'editservers') {
+    } elseif ($_GET['o'] == 'editgroup' || $_GET['o'] == 'editdetails'
+        || $_GET['o'] == 'editpermissions' || $_GET['o'] == 'editservers') {
         $adminTabMenu = new CTabsMenu();
         $adminTabMenu->addMenuItem("Back", 0, "", "javascript:history.go(-1);", true);
         $adminTabMenu->outputMenu();
@@ -244,7 +256,10 @@ if ($_GET['c'] == "groups") {
     }
 } elseif ($_GET['c'] == "bans") {
     // ###################[ Bans ]##################################################################
-    CheckAdminAccess(ADMIN_OWNER|ADMIN_ADD_BAN|ADMIN_EDIT_OWN_BANS|ADMIN_EDIT_GROUP_BANS|ADMIN_EDIT_ALL_BANS|ADMIN_BAN_PROTESTS|ADMIN_BAN_SUBMISSIONS);
+    CheckAdminAccess(
+        ADMIN_OWNER|ADMIN_ADD_BAN|ADMIN_EDIT_OWN_BANS|ADMIN_EDIT_GROUP_BANS
+        |ADMIN_EDIT_ALL_BANS|ADMIN_BAN_PROTESTS|ADMIN_BAN_SUBMISSIONS
+    );
 
     if (!isset($_GET['o'])) {
         // ====================[ ADMIN SIDE MENU START ] ===================
@@ -271,9 +286,11 @@ if ($_GET['c'] == "groups") {
         include TEMPLATES_PATH . "/admin.bans.php";
 
         if (isset($_GET['mode']) && $_GET['mode'] == "delete") {
-            echo "<script>ShowBox('Ban Deleted', 'The ban has been deleted from SourceBans', 'green', '', true);</script>";
+            echo "<script>ShowBox('Ban Deleted',
+                'The ban has been deleted from SourceBans', 'green', '', true);</script>";
         } elseif (isset($_GET['mode']) && $_GET['mode']=="unban") {
-            echo "<script>ShowBox('Player Unbanned', 'The Player has been unbanned from SourceBans', 'green', '', true);</script>";
+            echo "<script>ShowBox('Player Unbanned',
+                'The Player has been unbanned from SourceBans', 'green', '', true);</script>";
         }
 
         RewritePageTitle("Bans");
@@ -309,9 +326,11 @@ if ($_GET['c'] == "groups") {
         include TEMPLATES_PATH . "/admin.comms.php";
 
         if (isset($_GET['mode']) && $_GET['mode'] == "delete") {
-            echo "<script>ShowBox('Ban Deleted', 'The ban has been deleted from SourceBans', 'green', '', true);</script>";
+            echo "<script>ShowBox('Ban Deleted',
+                'The ban has been deleted from SourceBans', 'green', '', true);</script>";
         } elseif (isset($_GET['mode']) && $_GET['mode']=="unban") {
-            echo "<script>ShowBox('Player Unbanned', 'The Player has been unbanned from SourceBans', 'green', '', true);</script>";
+            echo "<script>ShowBox('Player Unbanned',
+                'The Player has been unbanned from SourceBans', 'green', '', true);</script>";
         }
 
         RewritePageTitle("Comms");
@@ -339,8 +358,10 @@ if ($_GET['c'] == "groups") {
         $modTabMenu->outputMenu();
         // ====================[ ADMIN SIDE MENU END ] ===================
 
-        $mod_list = $GLOBALS['db']->GetAll("SELECT * FROM `" . DB_PREFIX . "_mods` WHERE mid > 0 ORDER BY name ASC") ;
-        $query = $GLOBALS['db']->GetRow("SELECT COUNT(mid) AS cnt FROM `" . DB_PREFIX . "_mods`") ;
+        $database->query("SELECT * FROM `:prefix_mods` WHERE mid > 0 ORDER BY name ASC");
+        $mod_list = $database->resultset();
+        $database->query("SELECT COUNT(mid) AS cnt FROM `:prefix_mods`");
+        $query = $database->single();
         $mod_count = $query['cnt'];
         include TEMPLATES_PATH . "/admin.mods.php";
         RewritePageTitle("Manage Mods");

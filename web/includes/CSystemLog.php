@@ -45,9 +45,9 @@ class CSystemLog
         $type = "",
         $ttl = "",
         $msg = "",
-        $host = "",
         $done = null,
-        $query = null
+        $host = $_SERVER['REMOTE_ADDR'],
+        $query = $_SERVER['QUERY_STRING']
     ) {
         $this->database = $database;
 
@@ -62,17 +62,17 @@ class CSystemLog
             }
 
             $this->aid = $userbank->GetAid() ? $userbank->GetAid() : "-1";
-            $this->host = filter_input(INPUT_SERVER, $host); //$_SERVER['REMOTE_ADDR']
+            $this->host = filter_input(INPUT_SERVER, $host);
             $this->created = time();
             $this->parentFunction = $this->getCaller();
-            $this->query = is_null($query) ? '' : filter_input(INPUT_SERVER, $query); //$_SERVER['QUERY_STRING']
+            $this->query = is_null($query) ? '' : filter_input(INPUT_SERVER, $query);
             if (!is_null($done)) {
                 $this->WriteLog();
             }
         }
     }
 
-    public function addLogItem($tpe, $ttl, $msg, $host, $query)
+    public function addLogItem($tpe, $ttl, $msg, $host = $_SERVER['REMOTE_ADDR'], $query = $_SERVER['QUERY_STRING'])
     {
         $item = array();
         $item['type'] = $tpe;
